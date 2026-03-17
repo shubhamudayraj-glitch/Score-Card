@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Score Card Portal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px 10px 0 0; }
+        .login-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 50px auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #3498db; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; }
+        table { width: 100%; background: white; border-collapse: collapse; margin-top: 20px; }
+        th { background: #34495e; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #ddd; }
+        .role-badge { background: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px; }
+        .grade-A { background: #27ae60; color: white; padding: 3px 8px; border-radius: 3px; }
+        .grade-B { background: #f39c12; color: white; padding: 3px 8px; border-radius: 3px; }
+        .grade-F { background: #e74c3c; color: white; padding: 3px 8px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <!-- Login Form -->
+        <div id="loginSection" class="login-box">
+            <h2 style="margin-bottom: 20px; color: #2c3e50;">Score Card Portal Login</h2>
+            <input type="email" id="email" placeholder="Enter your email" value="test@example.com">
+            <button onclick="login()">Login</button>
+            <p style="margin-top: 15px; color: #7f8c8d; font-size: 14px;">Use any email to test</p>
+        </div>
+
+        <!-- Dashboard (Hidden by default) -->
+        <div id="dashboardSection" style="display: none;">
+            <div class="header">
+                <h1>📊 Performance Dashboard</h1>
+                <p style="margin-top: 10px;">Welcome, <span id="userEmail"></span> | <a href="#" onclick="logout()" style="color: white;">Logout</a></p>
+            </div>
+            
+            <!-- Summary Cards -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 20px 0;">
+                <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h3 style="color: #7f8c8d;">Total Records</h3>
+                    <p style="font-size: 24px; font-weight: bold;" id="totalCount">0</p>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h3 style="color: #7f8c8d;">A++ Grades</h3>
+                    <p style="font-size: 24px; font-weight: bold; color: #27ae60;" id="topGrades">0</p>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h3 style="color: #7f8c8d;">F Grades</h3>
+                    <p style="font-size: 24px; font-weight: bold; color: #e74c3c;" id="fGrades">0</p>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <h3 style="color: #7f8c8d;">Average Score</h3>
+                    <p style="font-size: 24px; font-weight: bold;" id="avgScore">0</p>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Sub Role</th>
+                            <th>Score</th>
+                            <th>Grade</th>
+                            <th>Designation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Your Google Sheet CSV export URL
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/10NpUBBmzD_5zPJuCWIi3oMQB6hzzU8D7EC-zxesK2O8/gviz/tq?tqx=out:csv&sheet=yesterday';
+        
+        let allData = [];
+
+        // Login function
+        function login() {
+            const email = document.getElementById('email').value;
+            if (email) {
+                loadData(email);
+            }
+        }
+
+        // Load and filter data
+        async function loadData(userEmail) {
+            try {
+                // Show loading
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('dashboardSection').style.display = 'block';
+                document.getElementById('userEmail').textContent = userEmail;
+
+                // Fetch data from sheet
+                const response = await fetch(SHEET_URL);
+                const csvText = await response.text();
+                
+                // Parse CSV
+                const rows = csvText.split('\n').map(row => row.split(','));
+                const headers = rows[0].map(h => h.replace(/"/g, ''));
+                
+                // Convert to objects
+                allData = rows.slice(1).map(row => {
+                    let obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header] = row[index] ? row[index].replace(/"/g, '') : '';
+                    });
+                    return obj;
+                });
+
+                // Filter for current user (based on email column - you'll need to add this to your sheet)
+                // For now, show all data
+                const userData = allData; // Replace with actual filtering when you add email column
+
+                displayData(userData);
+                updateStats(userData);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Error loading data. Please check your sheet URL.');
+            }
+        }
+
+        // Display data in table
+        function displayData(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.Month || ''}</td>
+                    <td>${row.Name || ''}</td>
+                    <td><span class="role-badge">${row.Role || ''}</span></td>
+                    <td>${row['Sub Role'] || ''}</td>
+                    <td>${row.Score || ''}</td>
+                    <td><span class="grade-${row.Grade || ''}">${row.Grade || ''}</span></td>
+                    <td>${row.Designation || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Update statistics
+        function updateStats(data) {
+            document.getElementById('totalCount').textContent = data.length;
+            
+            const topGrades = data.filter(row => row.Grade === 'A++').length;
+            document.getElementById('topGrades').textContent = topGrades;
+            
+            const fGrades = data.filter(row => row.Grade === 'F').length;
+            document.getElementById('fGrades').textContent = fGrades;
+            
+            const scores = data.map(row => parseFloat(row.Score)).filter(s => !isNaN(s));
+            const avg = scores.reduce((a, b) => a + b, 0) / scores.length || 0;
+            document.getElementById('avgScore').textContent = avg.toFixed(1);
+        }
+
+        // Logout function
+        function logout() {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('dashboardSection').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
